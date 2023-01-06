@@ -43,6 +43,7 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProviders;
 
+import com.alibaba.fastjson.JSON;
 import com.lqr.emoji.EmotionLayout;
 import com.lqr.emoji.IEmotionExtClickListener;
 import com.lqr.emoji.IEmotionSelectedListener;
@@ -63,6 +64,9 @@ import cn.wildfire.chat.kit.R2;
 import cn.wildfire.chat.kit.WfcWebViewActivity;
 import cn.wildfire.chat.kit.audio.AudioRecorderPanel;
 import cn.wildfire.chat.kit.audio.PttPanel;
+import cn.wildfire.chat.kit.common.OperateResult;
+import cn.wildfire.chat.kit.conversation.baidutranslate.Dto;
+import cn.wildfire.chat.kit.conversation.baidutranslate.TranslateUtils;
 import cn.wildfire.chat.kit.conversation.ext.core.ConversationExtension;
 import cn.wildfire.chat.kit.conversation.mention.Mention;
 import cn.wildfire.chat.kit.conversation.mention.MentionGroupMemberActivity;
@@ -81,9 +85,13 @@ import cn.wildfirechat.model.ChannelMenu;
 import cn.wildfirechat.model.Conversation;
 import cn.wildfirechat.model.ConversationInfo;
 import cn.wildfirechat.model.GroupInfo;
+import cn.wildfirechat.model.ModifyMyInfoEntry;
+import cn.wildfirechat.model.ModifyMyInfoType;
 import cn.wildfirechat.model.QuoteInfo;
 import cn.wildfirechat.ptt.PTTClient;
 import cn.wildfirechat.remote.ChatManager;
+import cn.wildfirechat.remote.GeneralCallback;
+import cn.wildfirechat.remote.UploadMediaCallback;
 
 public class ConversationInputPanel extends FrameLayout implements IEmotionSelectedListener {
 
@@ -201,6 +209,42 @@ public class ConversationInputPanel extends FrameLayout implements IEmotionSelec
         this.quoteInfo = QuoteInfo.initWithMessage(message);
         refRelativeLayout.setVisibility(VISIBLE);
         refEditText.setText(quoteInfo.getUserDisplayName() + ": " + quoteInfo.getMessageDigest());
+    }
+
+    public void translateMessage(Message message) {
+        TextMessageContent txtContent = (TextMessageContent)message.content;
+        String strContent = txtContent.getContent();
+        String res = TranslateUtils.postFromParameters(txtContent.getContent(),new UploadMediaCallback() {
+            @Override
+            public void onSuccess(String result) {
+                String res = "";
+                Dto dto = JSON.parseObject(result, Dto.class);
+                if(dto != null)
+                {
+                    if(!dto.resultList.isEmpty())
+                    {
+                        Dto.trans_result transresult = (Dto.trans_result)dto.resultList.get(0);
+                        String dst = transresult.getDst();
+                        message.localExtra = dst;
+                        ChatManager.Instance().setMessageLocalExtra(message.messageId,dst);
+                        ChatManager.Instance().updateMessage(message.messageId, txtContent);
+                        System.out.println(dst);
+                    }
+                }
+            }
+
+            @Override
+            public void onProgress(long uploaded, long total) {
+
+            }
+
+
+            @Override
+            public void onFail(int errorCode) {
+
+            }
+        });
+        int intRes = 0;
     }
 
     private void clearQuoteMessage() {

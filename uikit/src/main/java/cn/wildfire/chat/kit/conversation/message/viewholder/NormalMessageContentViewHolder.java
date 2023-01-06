@@ -26,6 +26,7 @@ import androidx.lifecycle.ViewModelProviders;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.afollestad.materialdialogs.MaterialDialog;
+import com.alibaba.fastjson.JSON;
 import com.bumptech.glide.load.resource.bitmap.CenterCrop;
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners;
 
@@ -47,6 +48,8 @@ import cn.wildfire.chat.kit.annotation.MessageContextMenuItem;
 import cn.wildfire.chat.kit.conversation.ConversationActivity;
 import cn.wildfire.chat.kit.conversation.ConversationFragment;
 import cn.wildfire.chat.kit.conversation.ConversationMessageAdapter;
+import cn.wildfire.chat.kit.conversation.baidutranslate.Dto;
+import cn.wildfire.chat.kit.conversation.baidutranslate.TranslateUtils;
 import cn.wildfire.chat.kit.conversation.forward.ForwardActivity;
 import cn.wildfire.chat.kit.conversation.message.model.UiMessage;
 import cn.wildfire.chat.kit.favorite.FavoriteItem;
@@ -74,6 +77,7 @@ import cn.wildfirechat.model.GroupInfo;
 import cn.wildfirechat.model.GroupMember;
 import cn.wildfirechat.model.UserInfo;
 import cn.wildfirechat.remote.ChatManager;
+import cn.wildfirechat.remote.UploadMediaCallback;
 import cn.wildfirechat.remote.UserSettingScope;
 
 /**
@@ -238,6 +242,11 @@ public abstract class NormalMessageContentViewHolder extends MessageContentViewH
         fragment.getConversationInputPanel().quoteMessage(message.message);
     }
 
+    @MessageContextMenuItem(tag = MessageContextMenuItemTags.TAG_TRANSLATE, priority = 15)
+    public void translateMessage(View itemView, UiMessage message) {
+        translateMessage(message.message);
+    }
+
     @MessageContextMenuItem(tag = MessageContextMenuItemTags.TAG_FAV, confirm = false, priority = 12)
     public void fav(View itemView, UiMessage message) {
         AppServiceProvider appServiceProvider = WfcUIKit.getWfcUIKit().getAppServiceProvider();
@@ -254,6 +263,43 @@ public abstract class NormalMessageContentViewHolder extends MessageContentViewH
                 Toast.makeText(fragment.getContext(), "收藏失败: " + code, Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    public void translateMessage(Message message) {
+        TextMessageContent txtContent = (TextMessageContent)message.content;
+        String strContent = txtContent.getContent();
+        String res = TranslateUtils.postFromParameters(txtContent.getContent(),new UploadMediaCallback() {
+            @Override
+            public void onSuccess(String result) {
+                String res = "";
+                Dto dto = JSON.parseObject(result, Dto.class);
+                if(dto != null)
+                {
+                    if(!dto.resultList.isEmpty())
+                    {
+                        Dto.trans_result transresult = (Dto.trans_result)dto.resultList.get(0);
+                        String dst = transresult.getDst();
+                        message.localExtra = dst;
+                        ChatManager.Instance().setMessageLocalExtra(message.messageId,dst);
+                        ChatManager.Instance().updateMessage(message.messageId, txtContent);
+                        System.out.println(dst);
+                    }
+                }
+
+            }
+
+            @Override
+            public void onProgress(long uploaded, long total) {
+
+            }
+
+
+            @Override
+            public void onFail(int errorCode) {
+
+            }
+        });
+        int intRes = 0;
     }
 
     @Override
@@ -280,6 +326,9 @@ public abstract class NormalMessageContentViewHolder extends MessageContentViewH
                 break;
             case MessageContextMenuItemTags.TAG_FAV:
                 title = "收藏";
+                break;
+            case MessageContextMenuItemTags.TAG_TRANSLATE:
+                title = "翻译";
                 break;
             default:
                 break;
@@ -372,6 +421,17 @@ public abstract class NormalMessageContentViewHolder extends MessageContentViewH
                 || messageContent instanceof SoundMessageContent
                 || messageContent instanceof ArticlesMessageContent
                 || messageContent instanceof ImageMessageContent) {
+                return false;
+            }
+            return true;
+        }
+
+        // 只有部分消息支持翻译
+        if (MessageContextMenuItemTags.TAG_TRANSLATE.equals(tag)) {
+            MessageContent messageContent = message.content;
+            if (messageContent instanceof TextMessageContent
+                    || messageContent instanceof CompositeMessageContent
+                    || messageContent instanceof ArticlesMessageContent) {
                 return false;
             }
             return true;

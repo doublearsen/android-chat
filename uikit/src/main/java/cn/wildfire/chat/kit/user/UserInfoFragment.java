@@ -201,7 +201,7 @@ public class UserInfoFragment extends Fragment {
         } else {
             groupAliasTextView.setVisibility(View.GONE);
         }
-        accountTextView.setText("野火ID:" + userInfo.name);
+        accountTextView.setText("外贸通ID:" + userInfo.name);
     }
 
     @OnClick(R2.id.chatButton)

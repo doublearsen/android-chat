@@ -49,6 +49,8 @@ public class TextMessageContentViewHolder extends NormalMessageContentViewHolder
     TextView contentTextView;
     @BindView(R2.id.refTextView)
     TextView refTextView;
+    @BindView(R2.id.translateTextView)
+    TextView translateTextView;
 
     private QuoteInfo quoteInfo;
 
@@ -79,6 +81,17 @@ public class TextMessageContentViewHolder extends NormalMessageContentViewHolder
             refTextView.setText(quoteInfo.getUserDisplayName() + ": " + quoteInfo.getMessageDigest());
         } else {
             refTextView.setVisibility(View.GONE);
+        }
+
+        String strTranslate = message.message.localExtra;
+        if(strTranslate != null && strTranslate.length() > 0)
+        {
+            translateTextView.setVisibility(View.VISIBLE);
+            translateTextView.setText(strTranslate);
+        }
+        else
+        {
+            translateTextView.setVisibility(View.GONE);
         }
     }
 
